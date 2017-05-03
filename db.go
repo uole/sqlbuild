@@ -5,6 +5,13 @@ import (
 	"log"
 )
 
+type Engine interface {
+	Open(driverName, dataSourceName string) error
+	Close()
+	Query(str string, args ...interface{}) ([]map[string][]byte, error)
+	Execute(str string, args ...interface{}) (int64, error)
+}
+
 type engine struct {
 	db           *sql.DB
 	query        *query
