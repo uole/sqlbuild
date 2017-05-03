@@ -31,8 +31,8 @@ func (q *query) Distinct(v string) *query {
 	return q
 }
 
-func (q *query) Join(t, table, condition string) *query {
-	q.join += fmt.Sprintf(" %s JOIN %s ON %s", t, table, condition)
+func (q *query) Join(join, table, condition string) *query {
+	q.join += fmt.Sprintf(" %s JOIN %s ON %s", join, table, condition)
 	return q
 }
 
@@ -51,60 +51,60 @@ func (q *query) InnerJoin(table, condition string) *query {
 	return q
 }
 
-func (q *query) Form(v string) *query {
-	q.table = v
+func (q *query) Form(value string) *query {
+	q.table = value
 	return q
 }
 
-func (q *query) Where(v string, avg ...interface{}) *query {
-	q.condition = fmt.Sprintf(" WHERE %s", v)
-	buffer := make([]interface{}, len(q.params)+len(avg))
+func (q *query) Where(condition string, values ...interface{}) *query {
+	q.condition = fmt.Sprintf(" WHERE %s", condition)
+	buffer := make([]interface{}, len(q.params)+len(values))
 	copy(buffer, q.params)
-	copy(buffer[len(q.params):], avg)
+	copy(buffer[len(q.params):], values)
 	q.params = buffer
 	return q
 }
 
-func (q *query) AndWhere(v string, avg ...interface{}) *query {
+func (q *query) AndWhere(v string, values ...interface{}) *query {
 	q.condition += fmt.Sprintf(" AND ( %s )", v)
-	buffer := make([]interface{}, len(q.params)+len(avg))
+	buffer := make([]interface{}, len(q.params)+len(values))
 	copy(buffer, q.params)
-	copy(buffer[len(q.params):], avg)
+	copy(buffer[len(q.params):], values)
 	q.params = buffer
 	return q
 }
 
-func (q *query) OrWhere(v string, avg ...interface{}) *query {
+func (q *query) OrWhere(v string, values ...interface{}) *query {
 	q.condition += fmt.Sprintf(" OR ( %s )", v)
-	buffer := make([]interface{}, len(q.params)+len(avg))
+	buffer := make([]interface{}, len(q.params)+len(values))
 	copy(buffer, q.params)
-	copy(buffer[len(q.params):], avg)
+	copy(buffer[len(q.params):], values)
 	q.params = buffer
 	return q
 }
 
-func (q *query) OrderBy(v string) *query {
-	q.orderBy = fmt.Sprintf(" ORDER BY %s", v)
+func (q *query) OrderBy(value string) *query {
+	q.orderBy = fmt.Sprintf(" ORDER BY %s", value)
 	return q
 }
 
-func (q *query) Having(v string) *query {
-	q.having = fmt.Sprintf(" HAVING %s", v)
+func (q *query) Having(value string) *query {
+	q.having = fmt.Sprintf(" HAVING %s", value)
 	return q
 }
 
-func (q *query) GroupBy(v string) *query {
-	q.groupBy = fmt.Sprintf(" GROUP BY %s", v)
+func (q *query) GroupBy(value string) *query {
+	q.groupBy = fmt.Sprintf(" GROUP BY %s", value)
 	return q
 }
 
-func (q *query) Offset(v int) *query {
-	q.offset = v
+func (q *query) Offset(value int) *query {
+	q.offset = value
 	return q
 }
 
-func (q *query) Limit(v int) *query {
-	q.limit = v
+func (q *query) Limit(value int) *query {
+	q.limit = value
 	return q
 }
 
@@ -155,20 +155,32 @@ func (q *query) One() (map[string]string, error) {
 	return data[0], nil
 }
 
+func (q *query) Column(name string) ([][]byte, error) {
+	str, args := q.ToSql()
+	data, err := q.engine.Query(str, args...)
+	if err != nil {
+		return nil, err
+	}
+	result := make([][]byte, 0, len(data))
+	for _, val := range data {
+		result = append(result, val[name])
+	}
+	return result, nil
+}
 
 func (q *query) All() ([]map[string]string, error) {
 	str, args := q.ToSql()
-	data,err :=  q.engine.Query(str, args...)
-	if err != nil{
-		return nil,err
+	data, err := q.engine.Query(str, args...)
+	if err != nil {
+		return nil, err
 	}
-	result := make([]map[string]string,0,len(data))
-	for _,val := range data{
+	result := make([]map[string]string, 0, len(data))
+	for _, val := range data {
 		row := make(map[string]string)
-		for k,v := range val{
+		for k, v := range val {
 			row[k] = string(v)
 		}
-		result = append(result,row)
+		result = append(result, row)
 	}
-	return result,nil
+	return result, nil
 }

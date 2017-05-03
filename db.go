@@ -6,11 +6,10 @@ import (
 )
 
 type engine struct {
-	db      *sql.DB
-	query   *query
-	debug   bool
-	command *command
-
+	db           *sql.DB
+	query        *query
+	debug        bool
+	command      *command
 	insertId     int64
 	affectedRows int64
 }
@@ -100,6 +99,10 @@ func (o *engine) Close() {
 
 func (o *engine) InsertId() int64 {
 	return o.insertId
+}
+
+func (o *engine) AffectedRows() int64 {
+	return o.affectedRows
 }
 
 func Open(driverName, dataSourceName string) (*engine, error) {
