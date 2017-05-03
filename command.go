@@ -1,11 +1,15 @@
 package sqlbuild
 
 import (
-	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
+)
+
+const (
+	INSERT = 0x01
+	UPDATE = 0x02
+	DELETE = 0x03
 )
 
 type command struct {
@@ -24,7 +28,7 @@ func (c *command) Table(name string) *command {
 
 func (c *command) Insert(column interface{}) *command {
 	c.column = column
-	c.flag = 0x01
+	c.flag = INSERT
 	return c
 }
 
@@ -34,7 +38,7 @@ func (c *command) Update(column interface{}, condition string, args ...interface
 		c.condition = fmt.Sprintf(" WHERE %s ", condition)
 	}
 	c.params = args
-	c.flag = 0x02
+	c.flag = UPDATE
 	return c
 }
 
@@ -43,7 +47,7 @@ func (c *command) Delete(condition string, args ...interface{}) *command {
 		c.condition = fmt.Sprintf(" WHERE %s ", condition)
 	}
 	c.params = args
-	c.flag = 0x03
+	c.flag = DELETE
 	return c
 }
 
@@ -51,18 +55,18 @@ func (c *command) ToSql() (string, []interface{}) {
 	var tpl string
 	var pairs map[string]string
 	var args []interface{}
-	if c.flag == 0x01 {
+	if c.flag == INSERT {
 		var str string
 		tpl = "INSERT INTO [TABLE] SET [VALUE]"
-		str, args, _ = builderColumn(c.column, true)
+		str, args = builderColumn(c.column, true)
 		pairs = map[string]string{
 			"[TABLE]": c.table,
 			"[VALUE]": str,
 		}
-	} else if c.flag == 0x02 {
+	} else if c.flag == UPDATE {
 		var str string
 		tpl = "UPDATE [TABLE] SET [VALUE] [WHERE] "
-		str, args, _ = builderColumn(c.column, true)
+		str, args = builderColumn(c.column, true)
 		pairs = map[string]string{
 			"[TABLE]": c.table,
 			"[VALUE]": str,
@@ -72,7 +76,7 @@ func (c *command) ToSql() (string, []interface{}) {
 		copy(buffer, args)
 		copy(buffer[len(args):], c.params)
 		args = buffer
-	} else if c.flag == 0x03 {
+	} else if c.flag == DELETE {
 		tpl = "DELETE FROM [TABLE] [WHERE] "
 		pairs = map[string]string{
 			"[TABLE]": c.table,
@@ -88,12 +92,18 @@ func (c *command) ToSql() (string, []interface{}) {
 
 func (c *command) Execute() (int64, error) {
 	str, args := c.ToSql()
-	log.Println("execute sql:" + str)
-	return c.engine.Execute(str, args...)
+	if _, err := c.engine.Execute(str, args...); err != nil {
+		return 0, err
+	}
+	if c.flag == INSERT {
+		return c.engine.insertId, nil
+	} else {
+		return c.engine.affectedRows, nil
+	}
 }
 
 // build data column to string
-func builderColumn(data interface{}, filter bool) (string, []interface{}, error) {
+func builderColumn(data interface{}, filter bool) (string, []interface{}) {
 	refValue := reflect.Indirect(reflect.ValueOf(data))
 	refType := refValue.Type()
 	str := ""
@@ -101,7 +111,7 @@ func builderColumn(data interface{}, filter bool) (string, []interface{}, error)
 	if refType.Kind() == reflect.Map {
 		data, ok := data.(map[string]interface{})
 		if !ok {
-			return "", nil, errors.New("invalid type")
+			panic("invalid type " + refType.Kind().String())
 		}
 		for k, v := range data {
 			if filter && isEmpty(reflect.ValueOf(v)) {
@@ -122,12 +132,9 @@ func builderColumn(data interface{}, filter bool) (string, []interface{}, error)
 			}
 			dataMap[name] = v.Interface()
 		}
-		log.Println(dataMap)
 		return builderColumn(dataMap, filter)
-	} else {
-		return "", nil, errors.New("invalid type")
 	}
-	return str, args, nil
+	return str, args
 }
 
 func isEmpty(val reflect.Value) bool {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"log"
 )
 
 type query struct {
@@ -159,7 +158,6 @@ func (q *query) One() (map[string]string, error) {
 
 func (q *query) All() ([]map[string]string, error) {
 	str, args := q.ToSql()
-	log.Println("query sql:"+str)
 	data,err :=  q.engine.Query(str, args...)
 	if err != nil{
 		return nil,err

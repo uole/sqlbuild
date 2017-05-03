@@ -2,24 +2,33 @@ package sqlbuild
 
 import (
 	"database/sql"
+	"log"
 )
 
 type engine struct {
 	db      *sql.DB
 	query   *query
+	debug   bool
 	command *command
+
+	insertId     int64
+	affectedRows int64
+}
+
+func (o *engine) SetDebug(debug bool) {
+	o.debug = true
 }
 
 func (o *engine) CreateQuery() *query {
 	o.query = &query{
-		engine:o,
+		engine: o,
 	}
 	return o.query
 }
 
 func (o *engine) CreateCommand() *command {
 	o.command = &command{
-		engine:o,
+		engine: o,
 	}
 	return o.command
 }
@@ -33,14 +42,22 @@ func (o *engine) Open(driverName, dataSourceName string) error {
 }
 
 func (o *engine) Execute(str string, args ...interface{}) (int64, error) {
+	if o.debug {
+		log.Println("query sql:", str)
+	}
 	if res, err := o.db.Exec(str, args...); err != nil {
 		return 0, err
 	} else {
+		o.insertId, _ = res.LastInsertId()
+		o.affectedRows, _ = res.RowsAffected()
 		return res.RowsAffected()
 	}
 }
 
-func (o *engine) Query(str string, args ...interface{}) ([]map[string]sql.RawBytes, error) {
+func (o *engine) Query(str string, args ...interface{}) ([]map[string][]byte, error) {
+	if o.debug {
+		log.Println("query sql:", str)
+	}
 	stmt, err := o.db.Prepare(str)
 	if err != nil {
 		return nil, err
@@ -55,18 +72,18 @@ func (o *engine) Query(str string, args ...interface{}) ([]map[string]sql.RawByt
 	if err != nil {
 		return nil, err
 	}
-	values := make([]sql.RawBytes, len(columns))
+	values := make([][]byte, len(columns))
 	scanArgs := make([]interface{}, len(values))
 	for i := range values {
 		scanArgs[i] = &values[i]
 	}
-	result := make([]map[string]sql.RawBytes, 0)
+	result := make([]map[string][]byte, 0, 0)
 	for res.Next() {
 		err = res.Scan(scanArgs...)
 		if err != nil {
 			return nil, err
 		}
-		value := make(map[string]sql.RawBytes)
+		value := make(map[string][]byte)
 		for i, col := range values {
 			value[columns[i]] = col
 		}
@@ -79,6 +96,10 @@ func (o *engine) Close() {
 	if o.db != nil {
 		o.db.Close()
 	}
+}
+
+func (o *engine) InsertId() int64 {
+	return o.insertId
 }
 
 func Open(driverName, dataSourceName string) (*engine, error) {
