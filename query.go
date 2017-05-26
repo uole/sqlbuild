@@ -2,6 +2,7 @@ package sqlbuild
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -18,7 +19,35 @@ type query struct {
 	offset    int
 	limit     int
 	params    []interface{}
-	engine    *engine
+	engine    *Context
+}
+
+func (q *query) Flush() *query {
+	q.table = ""
+	q.distinct = ""
+	q.join = ""
+	q.field = ""
+	q.condition = ""
+	q.orderBy = ""
+	q.groupBy = ""
+	q.having = ""
+	q.offset = 0
+	q.limit = 0
+	q.params = make([]interface{}, 0)
+	return q
+}
+
+func (q *query) Reset() {
+	q.distinct = ""
+	q.join = ""
+	q.field = ""
+	q.condition = ""
+	q.orderBy = ""
+	q.groupBy = ""
+	q.having = ""
+	q.offset = 0
+	q.limit = 0
+	q.params = make([]interface{}, 0)
 }
 
 func (q *query) Select(v string) *query {
@@ -66,7 +95,11 @@ func (q *query) Where(condition string, values ...interface{}) *query {
 }
 
 func (q *query) AndWhere(v string, values ...interface{}) *query {
-	q.condition += fmt.Sprintf(" AND ( %s )", v)
+	if q.condition == "" {
+		q.condition += fmt.Sprintf(" WHERE ( %s )", v)
+	} else {
+		q.condition += fmt.Sprintf(" AND ( %s )", v)
+	}
 	buffer := make([]interface{}, len(q.params)+len(values))
 	copy(buffer, q.params)
 	copy(buffer[len(q.params):], values)
@@ -75,7 +108,11 @@ func (q *query) AndWhere(v string, values ...interface{}) *query {
 }
 
 func (q *query) OrWhere(v string, values ...interface{}) *query {
-	q.condition += fmt.Sprintf(" OR ( %s )", v)
+	if q.condition == "" {
+		q.condition += fmt.Sprintf(" WHERE ( %s )", v)
+	} else {
+		q.condition += fmt.Sprintf(" OR ( %s )", v)
+	}
 	buffer := make([]interface{}, len(q.params)+len(values))
 	copy(buffer, q.params)
 	copy(buffer[len(q.params):], values)
@@ -157,6 +194,7 @@ func (q *query) One() (map[string]string, error) {
 
 func (q *query) Column(name string) ([][]byte, error) {
 	str, args := q.ToSql()
+	defer q.Reset()
 	data, err := q.engine.Query(str, args...)
 	if err != nil {
 		return nil, err
@@ -170,6 +208,7 @@ func (q *query) Column(name string) ([][]byte, error) {
 
 func (q *query) All() ([]map[string]string, error) {
 	str, args := q.ToSql()
+	defer q.Reset()
 	data, err := q.engine.Query(str, args...)
 	if err != nil {
 		return nil, err

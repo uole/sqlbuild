@@ -12,7 +12,7 @@ type Engine interface {
 	Execute(str string, args ...interface{}) (int64, error)
 }
 
-type engine struct {
+type Context struct {
 	db           *sql.DB
 	query        *query
 	debug        bool
@@ -21,25 +21,33 @@ type engine struct {
 	affectedRows int64
 }
 
-func (o *engine) SetDebug(debug bool) {
+func (o *Context) SetDebug(debug bool) {
 	o.debug = true
 }
 
-func (o *engine) CreateQuery() *query {
-	o.query = &query{
-		engine: o,
+func (o *Context) CreateQuery() *query {
+	if o.query == nil {
+		o.query = &query{
+			engine: o,
+		}
+	} else {
+		o.query.Flush()
 	}
 	return o.query
 }
 
-func (o *engine) CreateCommand() *command {
-	o.command = &command{
-		engine: o,
+func (o *Context) CreateCommand() *command {
+	if o.command == nil {
+		o.command = &command{
+			engine: o,
+		}
+	} else {
+		o.command.Flush()
 	}
 	return o.command
 }
 
-func (o *engine) Open(driverName, dataSourceName string) error {
+func (o *Context) Open(driverName, dataSourceName string) error {
 	var err error
 	if o.db, err = sql.Open(driverName, dataSourceName); err != nil {
 		return err
@@ -47,7 +55,7 @@ func (o *engine) Open(driverName, dataSourceName string) error {
 	return nil
 }
 
-func (o *engine) Execute(str string, args ...interface{}) (int64, error) {
+func (o *Context) Execute(str string, args ...interface{}) (int64, error) {
 	if o.debug {
 		log.Println("query sql:", str)
 	}
@@ -60,7 +68,7 @@ func (o *engine) Execute(str string, args ...interface{}) (int64, error) {
 	}
 }
 
-func (o *engine) Query(str string, args ...interface{}) ([]map[string][]byte, error) {
+func (o *Context) Query(str string, args ...interface{}) ([]map[string][]byte, error) {
 	if o.debug {
 		log.Println("query sql:", str)
 	}
@@ -98,22 +106,22 @@ func (o *engine) Query(str string, args ...interface{}) ([]map[string][]byte, er
 	return result, nil
 }
 
-func (o *engine) Close() {
+func (o *Context) Close() {
 	if o.db != nil {
 		o.db.Close()
 	}
 }
 
-func (o *engine) InsertId() int64 {
+func (o *Context) InsertId() int64 {
 	return o.insertId
 }
 
-func (o *engine) AffectedRows() int64 {
+func (o *Context) AffectedRows() int64 {
 	return o.affectedRows
 }
 
-func Open(driverName, dataSourceName string) (*engine, error) {
-	o := &engine{}
+func Open(driverName, dataSourceName string) (*Context, error) {
+	o := &Context{}
 	if err := o.Open(driverName, dataSourceName); err != nil {
 		return nil, err
 	}

@@ -18,7 +18,25 @@ type command struct {
 	column    interface{}
 	condition string
 	params    []interface{}
-	engine    *engine
+	engine    *Context
+}
+
+
+
+func (c *command)Flush()*command  {
+	c.flag = 0
+	c.table = ""
+	c.column = nil
+	c.condition = ""
+	c.params = make([]interface{},0)
+	return c
+}
+
+func (c *command)Reset()  {
+	c.flag = 0
+	c.column = nil
+	c.condition = ""
+	c.params = make([]interface{},0)
 }
 
 func (c *command) Table(name string) *command {
@@ -92,6 +110,7 @@ func (c *command) ToSql() (string, []interface{}) {
 
 func (c *command) Execute() (int64, error) {
 	str, args := c.ToSql()
+	defer c.Reset()
 	if _, err := c.engine.Execute(str, args...); err != nil {
 		return 0, err
 	}
