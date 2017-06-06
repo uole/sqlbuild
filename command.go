@@ -125,6 +125,7 @@ func (c *command) Execute() (int64, error) {
 func builderColumn(data interface{}, filter bool) (string, []interface{}) {
 	refValue := reflect.Indirect(reflect.ValueOf(data))
 	refType := refValue.Type()
+
 	str := ""
 	args := make([]interface{}, 0)
 	if refType.Kind() == reflect.Map {
