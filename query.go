@@ -2,7 +2,6 @@ package sqlbuild
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 )
