@@ -1,6 +1,7 @@
 package sqlbuild
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -20,6 +21,10 @@ type query struct {
 	params    []interface{}
 	engine    *Context
 }
+
+var (
+	ErrorNotFund = errors.New("not fund")
+)
 
 func (q *query) Flush() *query {
 	q.table = ""
@@ -79,7 +84,7 @@ func (q *query) InnerJoin(table, condition string) *query {
 	return q
 }
 
-func (q *query) Form(value string) *query {
+func (q *query) From(value string) *query {
 	q.table = value
 	return q
 }
@@ -175,6 +180,9 @@ func (q *query) Count() int {
 	if err != nil {
 		return 0
 	}
+	if data == nil{
+		return 0;
+	}
 	if v, err := strconv.Atoi(data["COUNT"]); err != nil {
 		return 0
 	} else {
@@ -183,17 +191,20 @@ func (q *query) Count() int {
 }
 
 func (q *query) One() (map[string]string, error) {
-	q.Limit(1)
+	q.Offset(0).Limit(1)
 	data, err := q.All()
-	if err != nil || len(data) <= 0 {
+	if err != nil {
 		return nil, err
+	}
+	if len(data) <= 0 {
+		return nil,nil
 	}
 	return data[0], nil
 }
 
 func (q *query) Column(name string) ([][]byte, error) {
 	str, args := q.ToSql()
-	defer q.Reset()
+	//defer q.Reset()
 	data, err := q.engine.Query(str, args...)
 	if err != nil {
 		return nil, err
@@ -207,7 +218,7 @@ func (q *query) Column(name string) ([][]byte, error) {
 
 func (q *query) All() ([]map[string]string, error) {
 	str, args := q.ToSql()
-	defer q.Reset()
+	//defer q.Reset()
 	data, err := q.engine.Query(str, args...)
 	if err != nil {
 		return nil, err
