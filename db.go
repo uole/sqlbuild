@@ -29,6 +29,7 @@ func (o *Context) CreateQuery() *query {
 	if o.query == nil {
 		o.query = &query{
 			engine: o,
+			field:"*",
 		}
 	} else {
 		o.query.Flush()

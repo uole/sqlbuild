@@ -7,20 +7,23 @@ import (
 	"strings"
 )
 
-type query struct {
-	table     string
-	distinct  string
-	join      string
-	field     string
-	condition string
-	orderBy   string
-	groupBy   string
-	having    string
-	offset    int
-	limit     int
-	params    []interface{}
-	engine    *Context
-}
+type (
+	query struct {
+		table     string
+		distinct  string
+		join      string
+		field     string
+		condition string
+		orderBy   string
+		groupBy   string
+		having    string
+		offset    int
+		limit     int
+		params    []interface{}
+		engine    *Context
+	}
+	Value []byte
+)
 
 var (
 	ErrorNotFund = errors.New("not fund")
@@ -30,7 +33,7 @@ func (q *query) Flush() *query {
 	q.table = ""
 	q.distinct = ""
 	q.join = ""
-	q.field = ""
+	q.field = "*"
 	q.condition = ""
 	q.orderBy = ""
 	q.groupBy = ""
@@ -52,6 +55,28 @@ func (q *query) Reset() {
 	q.offset = 0
 	q.limit = 0
 	q.params = make([]interface{}, 0)
+}
+
+func (v Value) ToInt() (int, error) {
+	if m, err := strconv.Atoi(string(v)); err == nil {
+		return m, nil
+	} else {
+		return 0, err
+	}
+}
+
+
+func (v Value) ToString() (string, error) {
+	return string(v), nil
+}
+
+
+func (v Value) ToFloat() (float64, error) {
+	if m, err := strconv.ParseFloat(string(v), 64); err == nil {
+		return m, nil
+	} else {
+		return 0, err
+	}
 }
 
 func (q *query) Select(v string) *query {
@@ -180,54 +205,52 @@ func (q *query) Count() int {
 	if err != nil {
 		return 0
 	}
-	if data == nil{
-		return 0;
+	if data == nil {
+		return 0
 	}
-	if v, err := strconv.Atoi(data["COUNT"]); err != nil {
+	if v, err := strconv.Atoi(string(data["COUNT"])); err != nil {
 		return 0
 	} else {
 		return v
 	}
 }
 
-func (q *query) One() (map[string]string, error) {
+func (q *query) One() (map[string]Value, error) {
 	q.Offset(0).Limit(1)
 	data, err := q.All()
 	if err != nil {
 		return nil, err
 	}
 	if len(data) <= 0 {
-		return nil,nil
+		return nil, nil
 	}
 	return data[0], nil
 }
 
-func (q *query) Column(name string) ([][]byte, error) {
+func (q *query) Column(name string) ([]Value, error) {
 	str, args := q.ToSql()
-	//defer q.Reset()
 	data, err := q.engine.Query(str, args...)
 	if err != nil {
 		return nil, err
 	}
-	result := make([][]byte, 0, len(data))
+	result := make([]Value, 0, len(data))
 	for _, val := range data {
 		result = append(result, val[name])
 	}
 	return result, nil
 }
 
-func (q *query) All() ([]map[string]string, error) {
+func (q *query) All() ([]map[string]Value, error) {
 	str, args := q.ToSql()
-	//defer q.Reset()
 	data, err := q.engine.Query(str, args...)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]map[string]string, 0, len(data))
+	result := make([]map[string]Value, 0, len(data))
 	for _, val := range data {
-		row := make(map[string]string)
+		row := make(map[string]Value)
 		for k, v := range val {
-			row[k] = string(v)
+			row[k] = v
 		}
 		result = append(result, row)
 	}

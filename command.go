@@ -21,22 +21,20 @@ type command struct {
 	engine    *Context
 }
 
-
-
-func (c *command)Flush()*command  {
+func (c *command) Flush() *command {
 	c.flag = 0
 	c.table = ""
 	c.column = nil
 	c.condition = ""
-	c.params = make([]interface{},0)
+	c.params = make([]interface{}, 0)
 	return c
 }
 
-func (c *command)Reset()  {
+func (c *command) Reset() {
 	c.flag = 0
 	c.column = nil
 	c.condition = ""
-	c.params = make([]interface{},0)
+	c.params = make([]interface{}, 0)
 }
 
 func (c *command) Table(name string) *command {
@@ -76,7 +74,7 @@ func (c *command) ToSql() (string, []interface{}) {
 	if c.flag == INSERT {
 		var str string
 		tpl = "INSERT INTO [TABLE] SET [VALUE]"
-		str, args = builderColumn(c.column, true)
+		str, args = populateColumn(c.column, true)
 		pairs = map[string]string{
 			"[TABLE]": c.table,
 			"[VALUE]": str,
@@ -84,7 +82,7 @@ func (c *command) ToSql() (string, []interface{}) {
 	} else if c.flag == UPDATE {
 		var str string
 		tpl = "UPDATE [TABLE] SET [VALUE] [WHERE] "
-		str, args = builderColumn(c.column, true)
+		str, args = populateColumn(c.column, true)
 		pairs = map[string]string{
 			"[TABLE]": c.table,
 			"[VALUE]": str,
@@ -122,7 +120,7 @@ func (c *command) Execute() (int64, error) {
 }
 
 // build data column to string
-func builderColumn(data interface{}, filter bool) (string, []interface{}) {
+func populateColumn(data interface{}, skipEmpty bool) (string, []interface{}) {
 	refValue := reflect.Indirect(reflect.ValueOf(data))
 	refType := refValue.Type()
 
@@ -134,7 +132,7 @@ func builderColumn(data interface{}, filter bool) (string, []interface{}) {
 			panic("invalid type " + refType.Kind().String())
 		}
 		for k, v := range data {
-			if filter && isEmpty(reflect.ValueOf(v)) {
+			if skipEmpty && isEmpty(reflect.ValueOf(v)) {
 				continue
 			}
 			str = str + k + " = ?,"
@@ -152,7 +150,7 @@ func builderColumn(data interface{}, filter bool) (string, []interface{}) {
 			}
 			dataMap[name] = v.Interface()
 		}
-		return builderColumn(dataMap, filter)
+		return populateColumn(dataMap, skipEmpty)
 	}
 	return str, args
 }
