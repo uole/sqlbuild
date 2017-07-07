@@ -57,25 +57,23 @@ func (q *query) Reset() {
 	q.params = make([]interface{}, 0)
 }
 
-func (v Value) ToInt() (int, error) {
+func (v Value) Int() int {
 	if m, err := strconv.Atoi(string(v)); err == nil {
-		return m, nil
+		return m
 	} else {
-		return 0, err
+		return 0
 	}
 }
 
-
-func (v Value) ToString() (string, error) {
-	return string(v), nil
+func (v Value) String() string {
+	return string(v)
 }
 
-
-func (v Value) ToFloat() (float64, error) {
+func (v Value) Float() float64 {
 	if m, err := strconv.ParseFloat(string(v), 64); err == nil {
-		return m, nil
+		return m
 	} else {
-		return 0, err
+		return 0
 	}
 }
 
